@@ -18,8 +18,15 @@ class SuperstoreAgent:
         return summary
 
     def month_over_month_profit(self):
-        self.df['Month'] = self.df['Order Date'].dt.to_period('M')
-        return self.df.groupby('Month')['Profit'].sum()
+    self.df['Month'] = self.df['Order Date'].dt.to_period('M')
+    monthly_profit = self.df.groupby('Month')['Profit'].sum()
+    mom_percent_change = monthly_profit.pct_change() * 100
+    result = pd.DataFrame({
+        "Total Profit": monthly_profit,
+        "MoM Profit Change (%)": mom_percent_change
+    }).dropna()
+    return result
+
 
     def season_wise_top_product(self):
         def season(month):
