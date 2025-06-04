@@ -1,8 +1,8 @@
 import pandas as pd
 from statsmodels.tsa.api import ExponentialSmoothing
 import streamlit as st
-import openai
 import os
+from openai import OpenAI  # updated import
 
 # -------------------------------
 # SuperstoreAgent Class
@@ -120,23 +120,23 @@ if uploaded_file:
         if not openai_api_key:
             st.warning("⚠️ OpenAI API key not set. Add it to environment or Streamlit secrets.")
         else:
-            openai.api_key = openai_api_key
+            client = OpenAI(api_key=openai_api_key)  # initialize client
 
             context = f"""
-            Dataset Columns: {', '.join(agent.df.columns)}
-            Sample Data:
-            {agent.df.head(3).to_csv(index=False)}
-            """
+Dataset Columns: {', '.join(agent.df.columns)}
+Sample Data:
+{agent.df.head(3).to_csv(index=False)}
+"""
 
             try:
-                response = openai.ChatCompletion.create(
-                    model="gpt-o4-mini",
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
                     messages=[
                         {"role": "system", "content": "You are a data analyst for a Superstore dataset. Answer questions based on the uploaded data."},
                         {"role": "user", "content": context + "\n\nQuestion: " + user_question}
                     ]
                 )
-                answer = response.choices[0].message['content']
+                answer = response.choices[0].message.content
                 st.success(answer)
             except Exception as e:
                 st.error(f"❌ Error from OpenAI: {str(e)}")
