@@ -1,7 +1,6 @@
 import pandas as pd
 from statsmodels.tsa.api import ExponentialSmoothing
 import streamlit as st
-import matplotlib.pyplot as plt
 import re
 import openai
 
@@ -74,7 +73,7 @@ class SuperstoreAgent:
         You are an AI assistant for a Superstore sales dashboard. You help analyze sales, profit, trends, forecasts,
         and product performance based on Excel data uploaded by the user.
         """
-        response = openai.ChatCompletion.create(
+        response = openai.chat.completions.create(
             model="gpt-4",
             messages=[
                 {"role": "system", "content": context},
