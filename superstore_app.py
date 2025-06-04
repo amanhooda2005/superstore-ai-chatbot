@@ -110,7 +110,7 @@ if st.session_state.uploaded_file:
         st.dataframe(agent.category_summary())
 
     elif option == "Month-over-Month Profit":
-        st.line_chart(agent.month_over_month_profit())
+        st.dataframe(agent.month_over_month_profit())
 
     elif option == "Top Selling Products by Season":
         st.dataframe(agent.season_wise_top_product())
