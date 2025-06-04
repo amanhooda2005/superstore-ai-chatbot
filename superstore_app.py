@@ -1,13 +1,12 @@
 import pandas as pd
 from statsmodels.tsa.api import ExponentialSmoothing
 import streamlit as st
-import re
 import openai
+import os
 
-# Set your OpenAI API key here if not using secrets
-# openai.api_key = st.secrets["openai_api_key"]
-
-
+# -------------------------------
+# SuperstoreAgent Class
+# -------------------------------
 class SuperstoreAgent:
     def __init__(self, file_path):
         self.df = pd.read_excel(file_path)
@@ -23,14 +22,7 @@ class SuperstoreAgent:
 
     def month_over_month_profit(self):
         self.df['Month'] = self.df['Order Date'].dt.to_period('M')
-        monthly_profit = self.df.groupby('Month')['Profit'].sum()
-        mom_percent_change = monthly_profit.pct_change() * 100  # Calculate % change
-        result = pd.DataFrame({
-            "Total Profit": monthly_profit,
-            "MoM Profit Change (%)": mom_percent_change
-        }).dropna()
-        result.index = result.index.to_timestamp()  # For plotting
-        return result
+        return self.df.groupby('Month')['Profit'].sum()
 
     def season_wise_top_product(self):
         def season(month):
@@ -68,63 +60,33 @@ class SuperstoreAgent:
         by_subcategory = self.df.groupby('Sub-Category')['Product Name'].nunique()
         return total, by_category, by_subcategory
 
-    def render_custom_chart(self, keyword):
-        filtered = self.df[self.df['Product Name'].str.contains(keyword, case=False, na=False)]
-        if filtered.empty:
-            return None
-        trend = filtered.groupby(filtered['Order Date'].dt.to_period('M'))['Sales'].sum()
-        trend.index = trend.index.to_timestamp()
-        return trend
 
-    def ask_question(self, question):
-        context = """
-        You are an AI assistant for a Superstore sales dashboard. You help analyze sales, profit, trends, forecasts,
-        and product performance based on Excel data uploaded by the user.
-        """
-        response = openai.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": context},
-                {"role": "user", "content": question}
-            ]
-        )
-        return response.choices[0].message.content.strip()
-
-
-def extract_keyword(text):
-    match = re.search(r"sales(?: trend)?(?: of| for)?\s*(.+)", text, re.IGNORECASE)
-    return match.group(1).strip() if match else text.strip()
-
-
+# -------------------------------
 # Streamlit App Interface
-st.set_page_config(page_title="🧠 Superstore AI Chatbot", page_icon="📊")
+# -------------------------------
+st.set_page_config(page_title="Superstore AI Chatbot", layout="wide")
 st.title("🧠 Superstore AI Chatbot")
 
-if 'uploaded_file' not in st.session_state:
-    st.session_state.uploaded_file = st.file_uploader("Upload Superstore Excel File", type=["xlsx"])
+uploaded_file = st.file_uploader("Upload Superstore Excel File", type=["xlsx"])
 
-if st.session_state.uploaded_file:
-    agent = SuperstoreAgent(st.session_state.uploaded_file)
+if uploaded_file:
+    agent = SuperstoreAgent(uploaded_file)
 
     option = st.selectbox("Choose a task", [
         "Category Summary",
         "Month-over-Month Profit",
         "Top Selling Products by Season",
         "Sales Forecast for All Products",
-        "Count Unique Products",
-        "Custom Sales Trend Chart",
-        "Ask Chatbot"
+        "Count Unique Products"
     ])
 
     if option == "Category Summary":
-        st.subheader("📊 Category-wise Summary")
+        st.subheader("📊 Category-wise Sales, Profit & Profit Ratio")
         st.dataframe(agent.category_summary())
 
     elif option == "Month-over-Month Profit":
-        st.subheader("📈 Month-over-Month Profit Analysis")
-        mom_df = agent.month_over_month_profit()
-        st.dataframe(mom_df.style.format({"Total Profit": "₹{:.2f}", "MoM Profit Change (%)": "{:.2f}%"}))
-        st.line_chart(mom_df)
+        st.subheader("📈 Month-over-Month Profit")
+        st.line_chart(agent.month_over_month_profit())
 
     elif option == "Top Selling Products by Season":
         st.subheader("🌦️ Top Selling Product by Season")
@@ -144,20 +106,37 @@ if st.session_state.uploaded_file:
         st.write("By Sub-Category")
         st.dataframe(by_sub)
 
-    elif option == "Custom Sales Trend Chart":
-        st.subheader("📌 Custom Sales Trend")
-        user_input = st.text_input("Ask a question like: Show sales for chairs")
-        if user_input:
-            keyword = extract_keyword(user_input)
-            chart_data = agent.render_custom_chart(keyword)
-            if chart_data is not None:
-                st.line_chart(chart_data)
-            else:
-                st.warning("No sales data found for the given keyword.")
+    # -------------------------------
+    # Natural Language Chatbot
+    # -------------------------------
+    st.markdown("---")
+    st.header("💬 Ask a Question About the Data")
 
-    elif option == "Ask Chatbot":
-        st.subheader("💬 Ask the Superstore Chatbot")
-        user_question = st.text_area("Ask your question about the superstore data:")
-        if user_question:
-            response = agent.ask_question(user_question)
-            st.markdown(response)
+    user_question = st.text_input("Ask in natural language (e.g., What is the most profitable category?)")
+
+    if user_question:
+        openai_api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
+
+        if not openai_api_key:
+            st.warning("⚠️ OpenAI API key not set. Add it to environment or Streamlit secrets.")
+        else:
+            openai.api_key = openai_api_key
+
+            context = f"""
+            Dataset Columns: {', '.join(agent.df.columns)}
+            Sample Data:
+            {agent.df.head(3).to_csv(index=False)}
+            """
+
+            try:
+                response = openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo",
+                    messages=[
+                        {"role": "system", "content": "You are a data analyst for a Superstore dataset. Answer questions based on the uploaded data."},
+                        {"role": "user", "content": context + "\n\nQuestion: " + user_question}
+                    ]
+                )
+                answer = response.choices[0].message['content']
+                st.success(answer)
+            except Exception as e:
+                st.error(f"❌ Error from OpenAI: {str(e)}")
