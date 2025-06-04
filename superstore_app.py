@@ -130,7 +130,7 @@ Sample Data:
 
             try:
                 response = client.chat.completions.create(
-                    model="gpt-4o-mini",
+                    model="gpt-4o",
                     messages=[
                         {"role": "system", "content": "You are a data analyst for a Superstore dataset. Answer questions based on the uploaded data."},
                         {"role": "user", "content": context + "\n\nQuestion: " + user_question}
