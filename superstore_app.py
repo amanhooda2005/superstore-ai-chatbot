@@ -130,7 +130,7 @@ if uploaded_file:
 
             try:
                 response = openai.ChatCompletion.create(
-                    model="gpt-3.5-turbo",
+                    model="deepseek-chat",
                     messages=[
                         {"role": "system", "content": "You are a data analyst for a Superstore dataset. Answer questions based on the uploaded data."},
                         {"role": "user", "content": context + "\n\nQuestion: " + user_question}
