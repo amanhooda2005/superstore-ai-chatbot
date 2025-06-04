@@ -5,7 +5,7 @@ import re
 import openai
 
 # Set your OpenAI API key here
-#openai.api_key = st.secrets["openai_api_key"]  # Use Streamlit secrets for safety
+openai.api_key = st.secrets["openai_api_key"]  # Use Streamlit secrets for safety
 
 class SuperstoreAgent:
     def __init__(self, file_path):
