@@ -4,8 +4,9 @@ import streamlit as st
 import re
 import openai
 
-# Set your OpenAI API key here
-#openai.api_key = st.secrets["openai_api_key"]  # Use Streamlit secrets for safety
+# Set your OpenAI API key here if not using secrets
+# openai.api_key = st.secrets["openai_api_key"]
+
 
 class SuperstoreAgent:
     def __init__(self, file_path):
@@ -22,7 +23,14 @@ class SuperstoreAgent:
 
     def month_over_month_profit(self):
         self.df['Month'] = self.df['Order Date'].dt.to_period('M')
-        return self.df.groupby('Month')['Profit'].sum()
+        monthly_profit = self.df.groupby('Month')['Profit'].sum()
+        mom_percent_change = monthly_profit.pct_change() * 100  # Calculate % change
+        result = pd.DataFrame({
+            "Total Profit": monthly_profit,
+            "MoM Profit Change (%)": mom_percent_change
+        }).dropna()
+        result.index = result.index.to_timestamp()  # For plotting
+        return result
 
     def season_wise_top_product(self):
         def season(month):
@@ -82,11 +90,13 @@ class SuperstoreAgent:
         )
         return response.choices[0].message.content.strip()
 
+
 def extract_keyword(text):
     match = re.search(r"sales(?: trend)?(?: of| for)?\s*(.+)", text, re.IGNORECASE)
     return match.group(1).strip() if match else text.strip()
 
-# Streamlit app interface
+
+# Streamlit App Interface
 st.set_page_config(page_title="🧠 Superstore AI Chatbot", page_icon="📊")
 st.title("🧠 Superstore AI Chatbot")
 
@@ -107,20 +117,26 @@ if st.session_state.uploaded_file:
     ])
 
     if option == "Category Summary":
+        st.subheader("📊 Category-wise Summary")
         st.dataframe(agent.category_summary())
 
     elif option == "Month-over-Month Profit":
-        st.dataframe(agent.month_over_month_profit())
+        st.subheader("📈 Month-over-Month Profit Analysis")
+        mom_df = agent.month_over_month_profit()
+        st.dataframe(mom_df.style.format({"Total Profit": "₹{:.2f}", "MoM Profit Change (%)": "{:.2f}%"}))
+        st.line_chart(mom_df)
 
     elif option == "Top Selling Products by Season":
+        st.subheader("🌦️ Top Selling Product by Season")
         st.dataframe(agent.season_wise_top_product())
 
     elif option == "Sales Forecast for All Products":
+        st.subheader("🔮 Sales Forecast for Next 6 Months")
         forecast_df = agent.forecast_all_products()
-        st.write("Sales forecast for next 6 months")
         st.dataframe(forecast_df)
 
     elif option == "Count Unique Products":
+        st.subheader("🧮 Unique Product Counts")
         total, by_cat, by_sub = agent.count_unique_products()
         st.write(f"Total Unique Products: {total}")
         st.write("By Category")
@@ -129,6 +145,7 @@ if st.session_state.uploaded_file:
         st.dataframe(by_sub)
 
     elif option == "Custom Sales Trend Chart":
+        st.subheader("📌 Custom Sales Trend")
         user_input = st.text_input("Ask a question like: Show sales for chairs")
         if user_input:
             keyword = extract_keyword(user_input)
@@ -139,6 +156,7 @@ if st.session_state.uploaded_file:
                 st.warning("No sales data found for the given keyword.")
 
     elif option == "Ask Chatbot":
+        st.subheader("💬 Ask the Superstore Chatbot")
         user_question = st.text_area("Ask your question about the superstore data:")
         if user_question:
             response = agent.ask_question(user_question)
