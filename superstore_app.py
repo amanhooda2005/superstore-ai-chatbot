@@ -27,7 +27,6 @@ class SuperstoreAgent:
     }).dropna()
     return result
 
-
     def season_wise_top_product(self):
         def season(month):
             return (
