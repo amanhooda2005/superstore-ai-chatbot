@@ -1,8 +1,11 @@
 import pandas as pd
 from statsmodels.tsa.api import ExponentialSmoothing
 import streamlit as st
-import os
-from openai import OpenAI 
+import re
+import openai
+
+# Set your OpenAI API key here
+#openai.api_key = st.secrets["openai_api_key"]  # Use Streamlit secrets for safety
 
 class SuperstoreAgent:
     def __init__(self, file_path):
@@ -18,11 +21,8 @@ class SuperstoreAgent:
         return summary
 
     def month_over_month_profit(self):
-    self.df['Month'] = self.df['Order Date'].dt.to_period('M')
-    monthly_profit = self.df.groupby('Month')['Profit'].sum()
-    mom_percent_change = monthly_profit.pct_change() * 100  # Calculate % change
-    return mom_percent_change.rename("MoM Profit Change (%)").dropna()
-
+        self.df['Month'] = self.df['Order Date'].dt.to_period('M')
+        return self.df.groupby('Month')['Profit'].sum()
 
     def season_wise_top_product(self):
         def season(month):
@@ -60,43 +60,67 @@ class SuperstoreAgent:
         by_subcategory = self.df.groupby('Sub-Category')['Product Name'].nunique()
         return total, by_category, by_subcategory
 
+    def render_custom_chart(self, keyword):
+        filtered = self.df[self.df['Product Name'].str.contains(keyword, case=False, na=False)]
+        if filtered.empty:
+            return None
+        trend = filtered.groupby(filtered['Order Date'].dt.to_period('M'))['Sales'].sum()
+        trend.index = trend.index.to_timestamp()
+        return trend
 
-# Streamlit App Interface
-st.set_page_config(page_title="Superstore AI Chatbot", layout="wide")
-st.title("Testing AI Chatbot")
+    def ask_question(self, question):
+        context = """
+        You are an AI assistant for a Superstore sales dashboard. You help analyze sales, profit, trends, forecasts,
+        and product performance based on Excel data uploaded by the user.
+        """
+        response = openai.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": context},
+                {"role": "user", "content": question}
+            ]
+        )
+        return response.choices[0].message.content.strip()
 
-uploaded_file = st.file_uploader("Upload Excel File", type=["xlsx"])
+def extract_keyword(text):
+    match = re.search(r"sales(?: trend)?(?: of| for)?\s*(.+)", text, re.IGNORECASE)
+    return match.group(1).strip() if match else text.strip()
 
-if uploaded_file:
-    agent = SuperstoreAgent(uploaded_file)
+# Streamlit app interface
+st.set_page_config(page_title="🧠 Superstore AI Chatbot", page_icon="📊")
+st.title("🧠 Superstore AI Chatbot")
+
+if 'uploaded_file' not in st.session_state:
+    st.session_state.uploaded_file = st.file_uploader("Upload Superstore Excel File", type=["xlsx"])
+
+if st.session_state.uploaded_file:
+    agent = SuperstoreAgent(st.session_state.uploaded_file)
 
     option = st.selectbox("Choose a task", [
         "Category Summary",
         "Month-over-Month Profit",
         "Top Selling Products by Season",
         "Sales Forecast for All Products",
-        "Count Unique Products"
+        "Count Unique Products",
+        "Custom Sales Trend Chart",
+        "Ask Chatbot"
     ])
 
     if option == "Category Summary":
-        st.subheader("Category-wise Sales, Profit & Profit Ratio")
         st.dataframe(agent.category_summary())
 
     elif option == "Month-over-Month Profit":
-        st.subheader("Month-over-Month Profit")
-        st.dataframe(agent.month_over_month_profit())
+        st.line_chart(agent.month_over_month_profit())
 
     elif option == "Top Selling Products by Season":
-        st.subheader("Top Selling Product by Season")
         st.dataframe(agent.season_wise_top_product())
 
     elif option == "Sales Forecast for All Products":
-        st.subheader("Sales Forecast for Next 6 Months")
         forecast_df = agent.forecast_all_products()
+        st.write("Sales forecast for next 6 months")
         st.dataframe(forecast_df)
 
     elif option == "Count Unique Products":
-        st.subheader("Unique Product Counts")
         total, by_cat, by_sub = agent.count_unique_products()
         st.write(f"Total Unique Products: {total}")
         st.write("By Category")
@@ -104,36 +128,18 @@ if uploaded_file:
         st.write("By Sub-Category")
         st.dataframe(by_sub)
 
-    
-    # Natural Language Chatbot
-    st.markdown("---")
-    st.header("Ask a Question About the Data")
+    elif option == "Custom Sales Trend Chart":
+        user_input = st.text_input("Ask a question like: Show sales for chairs")
+        if user_input:
+            keyword = extract_keyword(user_input)
+            chart_data = agent.render_custom_chart(keyword)
+            if chart_data is not None:
+                st.line_chart(chart_data)
+            else:
+                st.warning("No sales data found for the given keyword.")
 
-    user_question = st.text_input("Ask in natural language (e.g., What is the most profitable category?)")
-
-    if user_question:
-        openai_api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
-
-        if not openai_api_key:
-            st.warning("OpenAI API key not set. Add it to environment or Streamlit secrets.")
-        else:
-            client = OpenAI(api_key=openai_api_key) 
-
-            context = f"""
-Dataset Columns: {', '.join(agent.df.columns)}
-Sample Data:
-{agent.df.head(3).to_csv(index=False)}
-"""
-
-            try:
-                response = client.chat.completions.create(
-                    model="gpt-4o",
-                    messages=[
-                        {"role": "system", "content": "You are a data analyst for a Superstore dataset. Answer questions based on the uploaded data."},
-                        {"role": "user", "content": context + "\n\nQuestion: " + user_question}
-                    ]
-                )
-                answer = response.choices[0].message.content
-                st.success(answer)
-            except Exception as e:
-                st.error(f" Error from OpenAI: {str(e)}")
+    elif option == "Ask Chatbot":
+        user_question = st.text_area("Ask your question about the superstore data:")
+        if user_question:
+            response = agent.ask_question(user_question)
+            st.markdown(response)
