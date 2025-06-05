@@ -129,6 +129,10 @@ if uploaded_file:
             """
 
             try:
+                 client = OpenAI(
+                    base_url="https://openrouter.ai/api/v1",
+                    api_key="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",  # Replace this!
+                )
                 response = openai.ChatCompletion.create(
                     model="deepseek/deepseek-r1-0528-qwen3-8b:free",
                     messages=[
