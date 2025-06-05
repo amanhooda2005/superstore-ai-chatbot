@@ -103,7 +103,7 @@ if file:
 
                 completion = client.chat.completions.create(
                     extra_headers={
-                        "HTTP-Referer": "https://yourwebsite.com",  # Optional
+                        "HTTP-Referer": "https://superstore-ai-chatbot-bjqjfdgzdmwx7svsvqdvj2.streamlit.app/",  # Optional
                         "X-Title": "Superstore Dashboard",           # Optional
                     },
                     extra_body={},
