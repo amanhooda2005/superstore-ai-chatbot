@@ -34,16 +34,8 @@ if file:
     monthly_profit['MoM Profit Change (%)'] = monthly_profit['Profit'].pct_change() * 100
     monthly_profit['MoM Profit Change (%)'] = monthly_profit['MoM Profit Change (%)'].round(2)
 
-    st.subheader("📈 Month-over-Month Profit Change")
-    fig1 = px.line(
-        monthly_profit,
-        x='Month',
-        y='MoM Profit Change (%)',
-        title='Month-over-Month Profit Change (%)',
-        markers=True,
-        template='plotly_white'
-    )
-    st.plotly_chart(fig1, use_container_width=True)
+    st.subheader("📈 Month-over-Month Profit Change (Tabular View)")
+    st.dataframe(monthly_profit)
 
     # ----- Seasonal Best Sellers -----
     def get_season(month):
@@ -64,7 +56,7 @@ if file:
     st.dataframe(max_selling_products)
 
     # ----- Forecasting -----
-    st.subheader("📊 6-Month Forecast for Each Product")
+    st.subheader("📊 6-Month Forecast for Each Product (Tabular View)")
 
     forecast_dict = {}
     products = df['Product Name'].unique()
@@ -92,19 +84,7 @@ if file:
         forecast_df = pd.DataFrame(forecast_dict)
         forecast_df.index.name = "Forecast Month"
         forecast_df = forecast_df.reset_index()
-
-        forecast_melted = forecast_df.melt(id_vars="Forecast Month", var_name="Product", value_name="Forecasted Sales")
-
-        fig2 = px.line(
-            forecast_melted,
-            x="Forecast Month",
-            y="Forecasted Sales",
-            color="Product",
-            title="6-Month Sales Forecast per Product",
-            markers=True,
-            template="plotly_white"
-        )
-        st.plotly_chart(fig2, use_container_width=True)
+        st.dataframe(forecast_df)
     else:
         st.warning("Not enough data for forecasting.")
 
