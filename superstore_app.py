@@ -109,7 +109,7 @@ if uploaded_file:
     # -------------------------------
     # Natural Language Chatbot
     # -------------------------------
-     st.subheader("🧠 Ask AI (via OpenRouter)")
+     st.subheader("🧠 Ask AI (via OpenRouter)"
 
     user_prompt = st.text_input("Enter a question for the AI (e.g., 'What is the meaning of life?')")
 
