@@ -111,7 +111,7 @@ if uploaded_file:
     # -------------------------------
     st.subheader("🧠 Ask AI (via OpenRouter)")
 
-    user_prompt = st.text_input("Enter a question for the AI (e.g., 'What is the meaning of life?')")
+    user_prompt = st.text_input("Enter a question for the AI (e.g., 'what is the most profitable category?')")
 
     if user_prompt:
         with st.spinner("Contacting AI model..."):
