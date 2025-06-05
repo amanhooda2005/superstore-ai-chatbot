@@ -98,7 +98,7 @@ if file:
             try:
                 client = OpenAI(
                     base_url="https://openrouter.ai/api/v1",
-                    api_key="your_openrouter_api_key_here",  # Replace this!
+                    api_key="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",  # Replace this!
                 )
 
                 completion = client.chat.completions.create(
