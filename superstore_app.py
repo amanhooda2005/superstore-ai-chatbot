@@ -118,7 +118,7 @@ if uploaded_file:
             try:
                 client = OpenAI(
                     base_url="https://openrouter.ai/api/v1",
-                    api_key="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",  # Replace this with env or secret in prod
+                    api_key="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",  # Replace this with env or secret in prod
                 )
 
                 completion = client.chat.completions.create(
