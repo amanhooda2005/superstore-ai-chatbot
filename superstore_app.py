@@ -109,38 +109,33 @@ if uploaded_file:
     # -------------------------------
     # Natural Language Chatbot
     # -------------------------------
-    st.markdown("---")
-    st.header("💬 Ask a Question About the Data")
+     st.subheader("🧠 Ask AI (via OpenRouter)")
 
-    user_question = st.text_input("Ask in natural language (e.g., What is the most profitable category?)")
+    user_prompt = st.text_input("Enter a question for the AI (e.g., 'What is the meaning of life?')")
 
-    if user_question:
-        openai_api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
-
-        if not openai_api_key:
-            st.warning("⚠️ OpenAI API key not set. Add it to environment or Streamlit secrets.")
-        else:
-            openai.api_key = openai_api_key
-
-            context = f"""
-            Dataset Columns: {', '.join(agent.df.columns)}
-            Sample Data:
-            {agent.df.head(3).to_csv(index=False)}
-            """
-
+    if user_prompt:
+        with st.spinner("Contacting AI model..."):
             try:
-                 client = OpenAI(
+                client = OpenAI(
                     base_url="https://openrouter.ai/api/v1",
-                    api_key="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",  # Replace this!
+                    api_key="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",  # Replace this!
                 )
-                response = openai.ChatCompletion.create(
+
+                completion = client.chat.completions.create(
+                    extra_headers={  # Optional
+                        "X-Title": "Superstore Dashboard",           # Optional
+                    },
+                    extra_body={},
                     model="deepseek/deepseek-r1-0528-qwen3-8b:free",
                     messages=[
-                        {"role": "system", "content": "You are a data analyst for a Superstore dataset. Answer questions based on the uploaded data."},
-                        {"role": "user", "content": context + "\n\nQuestion: " + user_question}
+                        {"role": "user", "content": user_prompt}
                     ]
                 )
-                answer = response.choices[0].message['content']
-                st.success(answer)
+
+                st.success("AI Response:")
+                st.write(completion.choices[0].message.content)
+
             except Exception as e:
-                st.error(f"❌ Error from OpenAI: {str(e)}")
+                st.error(f"Error from OpenAI API: {e}")
+else:
+    st.info("👈 Upload an Excel file to get started.")
