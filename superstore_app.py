@@ -1,7 +1,7 @@
 import pandas as pd
 from statsmodels.tsa.api import ExponentialSmoothing
 import streamlit as st
-import openai
+from openai import OpenAI
 import os
 
 # -------------------------------
@@ -109,7 +109,7 @@ if uploaded_file:
     # -------------------------------
     # Natural Language Chatbot
     # -------------------------------
-     st.subheader("🧠 Ask AI (via OpenRouter)"
+    st.subheader("🧠 Ask AI (via OpenRouter)")
 
     user_prompt = st.text_input("Enter a question for the AI (e.g., 'What is the meaning of life?')")
 
@@ -118,12 +118,12 @@ if uploaded_file:
             try:
                 client = OpenAI(
                     base_url="https://openrouter.ai/api/v1",
-                    api_key="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",  # Replace this!
+                    api_key="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",  # Replace this with env or secret in prod
                 )
 
                 completion = client.chat.completions.create(
-                    extra_headers={  # Optional
-                        "X-Title": "Superstore Dashboard",           # Optional
+                    extra_headers={
+                        "X-Title": "Superstore Dashboard",
                     },
                     extra_body={},
                     model="deepseek/deepseek-r1-0528-qwen3-8b:free",
