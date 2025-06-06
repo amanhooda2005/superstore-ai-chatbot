@@ -65,7 +65,7 @@ class SuperstoreAgent:
 # Streamlit App Interface
 # -------------------------------
 st.set_page_config(page_title="Superstore AI Chatbot", layout="wide")
-st.title("🧠 Superstore AI Chatbot")
+st.title("Superstore AI Chatbot")
 
 uploaded_file = st.file_uploader("Upload Superstore Excel File", type=["xlsx"])
 
@@ -81,24 +81,24 @@ if uploaded_file:
     ])
 
     if option == "Category Summary":
-        st.subheader("📊 Category-wise Sales, Profit & Profit Ratio")
+        st.subheader("Category-wise Sales, Profit & Profit Ratio")
         st.dataframe(agent.category_summary())
 
     elif option == "Month-over-Month Profit":
-        st.subheader("📈 Month-over-Month Profit")
+        st.subheader("Month-over-Month Profit")
         st.line_chart(agent.month_over_month_profit())
 
     elif option == "Top Selling Products by Season":
-        st.subheader("🌦️ Top Selling Product by Season")
+        st.subheader("Top Selling Product by Season")
         st.dataframe(agent.season_wise_top_product())
 
     elif option == "Sales Forecast for All Products":
-        st.subheader("🔮 Sales Forecast for Next 6 Months")
+        st.subheader("Sales Forecast for Next 6 Months")
         forecast_df = agent.forecast_all_products()
         st.dataframe(forecast_df)
 
     elif option == "Count Unique Products":
-        st.subheader("🧮 Unique Product Counts")
+        st.subheader("Unique Product Counts")
         total, by_cat, by_sub = agent.count_unique_products()
         st.write(f"Total Unique Products: {total}")
         st.write("By Category")
@@ -109,7 +109,7 @@ if uploaded_file:
     # -------------------------------
     # Natural Language Chatbot
     # -------------------------------
-    st.subheader("🧠 Ask AI (via OpenRouter)")
+    st.subheader("Ask AI")
 
     user_prompt = st.text_input("Enter a question for the AI (e.g., 'what is the most profitable category?')")
 
@@ -138,4 +138,4 @@ if uploaded_file:
             except Exception as e:
                 st.error(f"Error from OpenAI API: {e}")
 else:
-    st.info("👈 Upload an Excel file to get started.")
+    st.info("Upload an Excel file to get started.")
