@@ -1,8 +1,8 @@
 import pandas as pd
 from statsmodels.tsa.api import ExponentialSmoothing
 import streamlit as st
-from openai import OpenAI
-import os
+import requests
+import json
 
 # -------------------------------
 # SuperstoreAgent Class
@@ -107,35 +107,41 @@ if uploaded_file:
         st.dataframe(by_sub)
 
     # -------------------------------
-    # Natural Language Chatbot
+    # Natural Language Chatbot (Gemini)
     # -------------------------------
     st.subheader("Ask AI")
 
     user_prompt = st.text_input("Enter a question for the AI (e.g., 'what is the most profitable category?')")
 
     if user_prompt:
-        with st.spinner("Contacting AI model..."):
+        with st.spinner("Contacting Gemini model..."):
             try:
-                client = OpenAI(
-                    base_url="https://openrouter.ai/api/v1",
-                    api_key="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",  # Replace this with env or secret in prod
-                )
+                GEMINI_API_KEY = st.secrets["gemini_api_key"]  # 🔑 Load from Streamlit secrets
 
-                completion = client.chat.completions.create(
-                    extra_headers={
-                        "X-Title": "Superstore Dashboard",
-                    },
-                    extra_body={},
-                    model="deepseek/deepseek-r1-0528-qwen3-8b:free",
-                    messages=[
-                        {"role": "user", "content": user_prompt}
+                url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+                headers = {
+                    "Content-Type": "application/json",
+                    "X-goog-api-key": GEMINI_API_KEY
+                }
+                payload = {
+                    "contents": [
+                        {
+                            "parts": [{"text": user_prompt}]
+                        }
                     ]
-                )
+                }
 
-                st.success("AI Response:")
-                st.write(completion.choices[0].message.content)
+                response = requests.post(url, headers=headers, data=json.dumps(payload))
+                result = response.json()
+
+                if "candidates" in result:
+                    ai_response = result["candidates"][0]["content"]["parts"][0]["text"]
+                    st.success("AI Response:")
+                    st.write(ai_response)
+                else:
+                    st.error(f"Unexpected response: {result}")
 
             except Exception as e:
-                st.error(f"Error from OpenAI API: {e}")
+                st.error(f"Error from Gemini API: {e}")
 else:
     st.info("Upload an Excel file to get started.")
