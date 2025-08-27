@@ -62,7 +62,7 @@ class SuperstoreAgent:
 
 
 # -------------------------------
-# Load Knowledge Base
+# Knowledge Base
 # -------------------------------
 def load_knowledge_base(file="knowledge_base.json"):
     try:
@@ -81,7 +81,37 @@ def get_kb_answer(user_prompt):
 
 
 # -------------------------------
-# Streamlit App Interface
+# Helper: Ask Gemini
+# -------------------------------
+def ask_gemini(prompt):
+    try:
+        GEMINI_API_KEY = st.secrets["gemini_api_key"]
+
+        url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+        headers = {
+            "Content-Type": "application/json",
+            "X-goog-api-key": GEMINI_API_KEY
+        }
+        payload = {
+            "contents": [
+                {"parts": [{"text": prompt}]}
+            ]
+        }
+
+        response = requests.post(url, headers=headers, data=json.dumps(payload))
+        result = response.json()
+
+        if "candidates" in result:
+            return result["candidates"][0]["content"]["parts"][0]["text"]
+        else:
+            return f"Unexpected response: {result}"
+
+    except Exception as e:
+        return f"Error from Gemini API: {e}"
+
+
+# -------------------------------
+# Streamlit App
 # -------------------------------
 st.set_page_config(page_title="Superstore AI Chatbot", layout="wide")
 st.title("Superstore AI Chatbot")
@@ -126,48 +156,78 @@ if uploaded_file:
         st.dataframe(by_sub)
 
     # -------------------------------
-    # Natural Language Chatbot (Knowledge Base + Gemini)
+    # AI Chat Section
     # -------------------------------
     st.subheader("Ask AI")
 
-    user_prompt = st.text_input("Enter a question for the AI (e.g., 'what is the most profitable category?' or 'difference between top down and bottom up parser')")
+    user_prompt = st.text_input("Ask a question (Excel-related or theory-related)")
 
     if user_prompt:
-        # 1. Check knowledge base first
+        # 1. Check Knowledge Base
         kb_answer = get_kb_answer(user_prompt)
         if kb_answer:
             st.success("📘 From Knowledge Base:")
             st.write(kb_answer)
+
         else:
-            # 2. If not found, call Gemini
-            with st.spinner("Contacting Gemini model..."):
-                try:
-                    GEMINI_API_KEY = st.secrets["gemini_api_key"]
+            # 2. Try to interpret as Excel question
+            df_answer = None
+            explanation = ""
 
-                    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
-                    headers = {
-                        "Content-Type": "application/json",
-                        "X-goog-api-key": GEMINI_API_KEY
-                    }
-                    payload = {
-                        "contents": [
-                            {
-                                "parts": [{"text": user_prompt}]
-                            }
-                        ]
-                    }
+            try:
+                if "most profitable category" in user_prompt.lower():
+                    result = agent.df.groupby("Category")["Profit"].sum().idxmax()
+                    value = agent.df.groupby("Category")["Profit"].sum().max()
+                    df_answer = f"Most profitable category: {result} (Profit = {value:.2f})"
+                    explanation = "Calculated using groupby(Category).sum() on Profit."
 
-                    response = requests.post(url, headers=headers, data=json.dumps(payload))
-                    result = response.json()
+                elif "total sales" in user_prompt.lower():
+                    value = agent.df["Sales"].sum()
+                    df_answer = f"Total Sales = {value:.2f}"
+                    explanation = "Calculated using df['Sales'].sum()."
 
-                    if "candidates" in result:
-                        ai_response = result["candidates"][0]["content"]["parts"][0]["text"]
-                        st.success("🤖 Gemini Response:")
-                        st.write(ai_response)
-                    else:
-                        st.error(f"Unexpected response: {result}")
+                elif "total profit" in user_prompt.lower():
+                    value = agent.df["Profit"].sum()
+                    df_answer = f"Total Profit = {value:.2f}"
+                    explanation = "Calculated using df['Profit'].sum()."
 
-                except Exception as e:
-                    st.error(f"Error from Gemini API: {e}")
+                elif "unique categories" in user_prompt.lower():
+                    cats = agent.df["Category"].unique().tolist()
+                    df_answer = f"Unique Categories: {', '.join(cats)}"
+                    explanation = "Calculated using df['Category'].unique()."
+
+                elif "top product" in user_prompt.lower():
+                    top = agent.df.groupby("Product Name")["Sales"].sum().idxmax()
+                    value = agent.df.groupby("Product Name")["Sales"].sum().max()
+                    df_answer = f"Top-selling product: {top} (Sales = {value:.2f})"
+                    explanation = "Calculated using groupby(Product Name).sum() on Sales."
+
+            except Exception as e:
+                df_answer = None
+                explanation = f"Error while processing dataframe: {e}"
+
+            # If DataFrame gave an answer
+            if df_answer:
+                st.success("📊 From Excel Data:")
+                st.write(df_answer)
+
+                # Ask Gemini to rephrase nicely
+                context_prompt = f"""
+The user asked: "{user_prompt}"
+From the Excel file I calculated: {df_answer}
+Method: {explanation}
+
+Please rephrase this result in a clear, natural explanation.
+                """
+                ai_response = ask_gemini(context_prompt)
+                st.info("🤖 Gemini Explanation:")
+                st.write(ai_response)
+
+            else:
+                # 3. If not dataset-related, ask Gemini directly
+                ai_response = ask_gemini(user_prompt)
+                st.success("🤖 Gemini Response:")
+                st.write(ai_response)
+
 else:
     st.info("Upload an Excel file to get started.")
