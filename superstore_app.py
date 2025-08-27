@@ -62,6 +62,25 @@ class SuperstoreAgent:
 
 
 # -------------------------------
+# Load Knowledge Base
+# -------------------------------
+def load_knowledge_base(file="knowledge_base.json"):
+    try:
+        with open(file, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except:
+        return []
+
+knowledge_base = load_knowledge_base()
+
+def get_kb_answer(user_prompt):
+    for qa in knowledge_base:
+        if qa["question"].lower() in user_prompt.lower():
+            return qa["answer"]
+    return None
+
+
+# -------------------------------
 # Streamlit App Interface
 # -------------------------------
 st.set_page_config(page_title="Superstore AI Chatbot", layout="wide")
@@ -107,41 +126,48 @@ if uploaded_file:
         st.dataframe(by_sub)
 
     # -------------------------------
-    # Natural Language Chatbot (Gemini)
+    # Natural Language Chatbot (Knowledge Base + Gemini)
     # -------------------------------
     st.subheader("Ask AI")
 
-    user_prompt = st.text_input("Enter a question for the AI (e.g., 'what is the most profitable category?')")
+    user_prompt = st.text_input("Enter a question for the AI (e.g., 'what is the most profitable category?' or 'difference between top down and bottom up parser')")
 
     if user_prompt:
-        with st.spinner("Contacting Gemini model..."):
-            try:
-                GEMINI_API_KEY = st.secrets["gemini_api_key"]  # 🔑 Load from Streamlit secrets
+        # 1. Check knowledge base first
+        kb_answer = get_kb_answer(user_prompt)
+        if kb_answer:
+            st.success("📘 From Knowledge Base:")
+            st.write(kb_answer)
+        else:
+            # 2. If not found, call Gemini
+            with st.spinner("Contacting Gemini model..."):
+                try:
+                    GEMINI_API_KEY = st.secrets["gemini_api_key"]
 
-                url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
-                headers = {
-                    "Content-Type": "application/json",
-                    "X-goog-api-key": GEMINI_API_KEY
-                }
-                payload = {
-                    "contents": [
-                        {
-                            "parts": [{"text": user_prompt}]
-                        }
-                    ]
-                }
+                    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+                    headers = {
+                        "Content-Type": "application/json",
+                        "X-goog-api-key": GEMINI_API_KEY
+                    }
+                    payload = {
+                        "contents": [
+                            {
+                                "parts": [{"text": user_prompt}]
+                            }
+                        ]
+                    }
 
-                response = requests.post(url, headers=headers, data=json.dumps(payload))
-                result = response.json()
+                    response = requests.post(url, headers=headers, data=json.dumps(payload))
+                    result = response.json()
 
-                if "candidates" in result:
-                    ai_response = result["candidates"][0]["content"]["parts"][0]["text"]
-                    st.success("AI Response:")
-                    st.write(ai_response)
-                else:
-                    st.error(f"Unexpected response: {result}")
+                    if "candidates" in result:
+                        ai_response = result["candidates"][0]["content"]["parts"][0]["text"]
+                        st.success("🤖 Gemini Response:")
+                        st.write(ai_response)
+                    else:
+                        st.error(f"Unexpected response: {result}")
 
-            except Exception as e:
-                st.error(f"Error from Gemini API: {e}")
+                except Exception as e:
+                    st.error(f"Error from Gemini API: {e}")
 else:
     st.info("Upload an Excel file to get started.")
